@@ -10,9 +10,6 @@ export const logger = pino({
       translateTime: "HH:MM:ss.l",
       ignore: "pid,hostname",
       messageFormat: "{levelLabel} {msg}",
-      customPrettifiers: {
-        time: (timestamp: string) => `🕐 ${timestamp}`,
-      },
     },
   },
 });
