@@ -160,6 +160,7 @@ export async function runParallelWorkflow(params: {
       output,
       startedAt,
       endedAt,
+      branchIndex: index,
     };
   });
 
@@ -216,7 +217,7 @@ export async function runParallelWorkflow(params: {
   // Print parallel completion
   printParallelComplete(branchResults.length, parallelDuration);
 
-  // Print individual branch outputs
+  // Print individual branch completions
   for (const result of branchResults) {
     printAgentComplete(result);
   }

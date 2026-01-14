@@ -10,6 +10,9 @@ dist/
 # Logs
 *.log
 
+# Output files
+output/
+
 # OS / Editor junk
 .DS_Store
 .vscode/

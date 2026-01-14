@@ -15,6 +15,7 @@ import {
   agentLogger,
   orchestratorLogger,
   logger,
+  clearLogBuffer,
 } from "../logger/enhanced-logger";
 
 export async function runCommand(
@@ -22,6 +23,9 @@ export async function runCommand(
   userInput: string
 ) {
   const startTime = Date.now();
+  
+  // Clear previous log buffer for fresh run
+  clearLogBuffer();
   
   logger.info({
     event: "COMMAND_START",
