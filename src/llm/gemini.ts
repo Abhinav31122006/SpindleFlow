@@ -8,10 +8,9 @@ export class GeminiProvider implements LLMProvider {
   private client: GoogleGenerativeAI;
   private rateLimiter: RateLimiter;
 
-  constructor() {
+  constructor(apiKey: string) {
     llmLogger.info("🔧 Initializing Gemini Provider");
     
-    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       llmLogger.error("❌ GEMINI_API_KEY is not set");
       throw new Error("GEMINI_API_KEY is not set");

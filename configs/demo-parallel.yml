@@ -1,20 +1,32 @@
 agents:
-  - id: backend
-    role: Backend Engineer
-    goal: Propose a REST API design for an EV platform
+  - id: researcher
+    role: Market Researcher
+    goal: Research the problem space and user needs
 
-  - id: frontend
-    role: Frontend Engineer
-    goal: Propose a UI layout for an EV platform
+  - id: analyst
+    role: Product Analyst
+    goal: Break down requirements and constraints
+
+  - id: designer
+    role: UX Designer
+    goal: Propose a clear UX solution
+
+  - id: architect
+    role: System Architect
+    goal: Design a high-level technical architecture
 
   - id: reviewer
     role: Tech Lead
-    goal: Consolidate backend and frontend proposals into one final plan
+    goal: Review all outputs and provide a final consolidated direction
 
 workflow:
   type: parallel
+
   branches:
-    - backend
-    - frontend
+    - researcher
+    - analyst
+    - designer
+    - architect
+
   then:
     agent: reviewer

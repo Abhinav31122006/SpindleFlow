@@ -17,15 +17,32 @@ import {
   logger,
   clearLogBuffer,
 } from "../logger/enhanced-logger";
+import {
+  buildExecutionGraph,
+  buildContextGraph,
+  buildTimingGraph,
+  buildParallelExecutionGraph,
+  saveGraph,
+} from "../visualization";
 
 export async function runCommand(
   configPath: string,
-  userInput: string
+  userInput: string,
+  apiKey?: string
 ) {
   const startTime = Date.now();
   
   // Clear previous log buffer for fresh run
   clearLogBuffer();
+  logger.info(
+    {
+      event: "API_KEY_STATUS",
+      providedViaCLI: Boolean(apiKey),
+    },
+    apiKey
+      ? "🔑 API key provided via CLI"
+      : "🔑 No API key provided via CLI (will fallback to env)"
+  );
   
   logger.info({
     event: "COMMAND_START",
@@ -78,6 +95,11 @@ export async function runCommand(
     configLogger.info({
       event: "SEMANTIC_VALIDATION_COMPLETE",
     }, `✅ Semantic validation passed`);
+    if (!apiKey && !process.env.GEMINI_API_KEY) {
+      throw new Error(
+        "Missing API key. Provide --api-key or set GEMINI_API_KEY."
+      );
+    }
 
     // 4. Build agent registry
     agentLogger.info({
@@ -110,7 +132,7 @@ export async function runCommand(
       event: "LLM_PROVIDER_SELECT_START",
     }, `🤖 Selecting LLM provider`);
 
-    const llm = getLLMProvider();
+    const llm = getLLMProvider({ apiKey });
 
     configLogger.info({
       event: "LLM_PROVIDER_SELECTED",
@@ -142,6 +164,61 @@ export async function runCommand(
 
     // 9. Print final output
     printFinalOutput(context);
+    // ── Base output directory ──
+    const baseOutputDir = "output";
+    // ── Build graphs once ──
+    const executionGraph = buildExecutionGraph(context.timeline);
+    const contextGraph = buildContextGraph(context);
+    const timingGraph = buildTimingGraph(context.timeline);
+  
+    // ── Parallel execution graph (only for parallel workflows) ──
+    if (parsed.workflow.type === "parallel") {
+      const parallelExecutionGraph =
+        buildParallelExecutionGraph(context.timeline);
+
+      console.log("\n" + parallelExecutionGraph);
+
+      saveGraph(
+        baseOutputDir,
+        "parallel_execution_graph.txt",
+        parallelExecutionGraph
+      );
+
+      logger.info(
+        {
+          event: "PARALLEL_GRAPH_SAVED",
+          file: "output/graphs/parallel_execution_graph.txt",
+        },
+        "🧩 Parallel execution graph saved"
+      );
+    }
+
+    // ── Print to console ──
+    console.log("\n" + executionGraph);
+    console.log("\n" + contextGraph);
+    console.log("\n" + timingGraph);
+
+    // ── Save to files ──
+    
+
+    saveGraph(baseOutputDir, "execution_graph.txt", executionGraph);
+    saveGraph(baseOutputDir, "context_graph.txt", contextGraph);
+    saveGraph(baseOutputDir, "timing_graph.txt", timingGraph);
+
+    logger.info(
+      {
+        event: "GRAPHS_SAVED",
+        files: [
+      "output/graphs/execution_graph.txt",
+      "output/graphs/context_graph.txt",
+      "output/graphs/timing_graph.txt",
+      ...(parsed.workflow.type === "parallel"
+        ? ["output/graphs/parallel_execution_graph.txt"]
+        : []),
+    ],
+      },
+      "📊 ASCII graphs saved to output/graphs/"
+    );
 
     const endTime = Date.now();
     const totalDuration = endTime - startTime;

@@ -6,6 +6,9 @@ export type TimelineEntry = {
   output: string;
   startedAt: number;
   endedAt: number;
+  branchId?: string;        // e.g. "branch-1"
+  branchIndex?: number;     // e.g. 1
+  isAggregator?: boolean;   // true only for aggregator
 };
 
 export class ContextStore {

@@ -154,13 +154,16 @@ export async function runParallelWorkflow(params: {
       executionMode: "parallel",
     });
 
+    const branchId = `branch-${branchNumber}`;
+
     return {
       agentId: agent.id,
       role: agent.role,
       output,
       startedAt,
       endedAt,
-      branchIndex: index,
+      branchId,
+      branchIndex: branchNumber, 
     };
   });
 
@@ -310,6 +313,7 @@ export async function runParallelWorkflow(params: {
     output: finalOutput,
     startedAt,
     endedAt,
+    isAggregator: true,
   };
   
   context.addTimelineEntry(finalEntry);
