@@ -1,0 +1,7 @@
+agents:
+  - id: test
+    role: Tester
+    goal: Test things
+workflow:
+  type: bad-type
+  steps: []

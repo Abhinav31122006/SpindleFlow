@@ -1,0 +1,19 @@
+# Test config with various errors to demonstrate error handling
+
+# Error 1: Missing required 'goal' field
+agents:
+  - id: researcher
+    role: Research Analyst
+    # goal is missing!
+
+  - id: writer
+    role: Content Writer
+    goal: Write comprehensive articles
+
+# Error 2: Workflow references non-existent agent
+workflow:
+  type: sequential
+  steps:
+    - agent: researcher
+    - agent: editor  # This agent doesn't exist!
+    - agent: writer

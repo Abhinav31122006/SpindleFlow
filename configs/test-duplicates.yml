@@ -1,0 +1,11 @@
+agents:
+  - id: researcher
+    role: Researcher
+    goal: Research
+  - id: researcher
+    role: Senior Researcher
+    goal: Deep research
+workflow:
+  type: sequential
+  steps:
+    - agent: researcher

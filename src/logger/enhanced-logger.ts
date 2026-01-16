@@ -1,17 +1,32 @@
 import pino from "pino";
 
 // Create a custom logger with console output only
-export const logger = pino({
-  level: process.env.LOG_LEVEL || "trace",
-}, pino.transport({
-  target: "pino-pretty",
-  options: {
-    colorize: true,
-    translateTime: "HH:MM:ss.l",
-    ignore: "pid,hostname",
-    messageFormat: "{levelLabel} {msg}",
-  },
-}));
+// Use pino-pretty transport, but handle cases where it might not load properly
+let transport;
+try {
+  transport = pino.transport({
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      translateTime: "HH:MM:ss.l",
+      ignore: "pid,hostname",
+      messageFormat: "{levelLabel} {msg}",
+    },
+  });
+} catch (error) {
+  // Fallback to basic console output if pino-pretty fails to load
+  transport = undefined;
+}
+
+export const logger = transport 
+  ? pino({ level: process.env.LOG_LEVEL || "trace" }, transport)
+  : pino({ 
+      level: process.env.LOG_LEVEL || "trace",
+      transport: {
+        target: "pino/file",
+        options: { destination: 1 } // stdout
+      }
+    });
 
 
 

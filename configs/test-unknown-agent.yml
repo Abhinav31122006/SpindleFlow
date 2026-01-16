@@ -1,0 +1,13 @@
+agents:
+  - id: researcher
+    role: Research Analyst
+    goal: Research topics
+  - id: writer
+    role: Content Writer
+    goal: Write articles
+workflow:
+  type: sequential
+  steps:
+    - agent: researcher
+    - agent: editor
+    - agent: writer

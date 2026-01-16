@@ -1,6 +1,11 @@
 import { loadYamlConfig } from "../config/loader";
 import { RootConfigSchema, RootConfig } from "../config/schema";
 import { validateSemantics } from "../config/validator";
+import { 
+  ConfigError, 
+  SemanticValidationError, 
+  formatZodError 
+} from "../config/errorFormatter";
 import { AgentRegistry } from "../agents/registry";
 import { getLLMProvider } from "../llm";
 import { runWorkflow } from "../orchestrator/engine";
@@ -23,6 +28,7 @@ import {
   buildParallelExecutionGraph,
   saveGraph,
 } from "../visualization";
+import { ZodError } from "zod";
 
 export async function runCommand(
   configPath: string,
@@ -55,7 +61,19 @@ export async function runCommand(
       configPath,
     }, `📂 Loading configuration from: ${configPath}`);
 
-    const rawConfig = loadYamlConfig(configPath);
+    let rawConfig: unknown;
+    try {
+      rawConfig = loadYamlConfig(configPath);
+    } catch (error) {
+      // Re-throw with better context if it's not already a ConfigError
+      if (error instanceof ConfigError) {
+        throw error;
+      }
+      throw new ConfigError(
+        `Failed to load configuration file: ${configPath}`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
 
     configLogger.debug({
       event: "CONFIG_LOADED",
@@ -68,7 +86,13 @@ export async function runCommand(
       event: "CONFIG_PARSE_START",
     }, `🔍 Parsing and validating configuration schema`);
 
-    const parsed: RootConfig = RootConfigSchema.parse(rawConfig);
+    let parsed: RootConfig;
+    try {
+      parsed = RootConfigSchema.parse(rawConfig);
+    } catch (error) {
+      // ZodError will be caught by outer catch and formatted
+      throw error;
+    }
 
     configLogger.info({
       event: "CONFIG_PARSED",
@@ -87,7 +111,12 @@ export async function runCommand(
       event: "SEMANTIC_VALIDATION_START",
     }, `🔍 Validating semantic rules`);
 
-    validateSemantics(parsed);
+    try {
+      validateSemantics(parsed);
+    } catch (error) {
+      // SemanticValidationError will be caught by outer catch and formatted
+      throw error;
+    }
 
     configLogger.info({
       event: "SEMANTIC_VALIDATION_COMPLETE",
@@ -239,11 +268,22 @@ export async function runCommand(
       timestamp: errorTime,
     }, `❌ SpindleFlow execution failed after ${duration}ms`);
 
-    if (error instanceof Error) {
+    // Handle different types of errors with user-friendly messages
+    if (error instanceof ConfigError || error instanceof SemanticValidationError) {
+      // Our custom config errors - already formatted
+      console.error(error.format());
+    } else if (error instanceof ZodError) {
+      // Zod validation errors - format them nicely
+      const formattedError = formatZodError(error);
+      console.error(formattedError.format());
+    } else if (error instanceof Error) {
+      // Generic errors
       printError(error, "Workflow Execution");
     } else {
+      // Unknown error type
       printError(new Error(String(error)), "Workflow Execution");
     }
+    
     process.exit(1);
   }
 }
