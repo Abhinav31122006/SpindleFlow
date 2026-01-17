@@ -1,0 +1,25 @@
+models:
+  gemini:
+    provider: gemini
+    model: gemini-2.5-flash-lite
+    max_tokens: 8000
+
+provider: gemini
+
+tool_config:
+  filesystem:
+    working_directory: ./test-workspace
+  code_execution:
+    timeout: 5000
+
+agents:
+  - id: calculator
+    role: "Calculator Agent"
+    goal: "Write and execute JavaScript code to calculate mathematical expressions"
+    tools:
+      - code_execution
+
+workflow:
+  type: sequential
+  steps:
+    - agent: calculator

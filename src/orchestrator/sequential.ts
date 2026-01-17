@@ -4,6 +4,8 @@ import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
 import { ToolInvoker } from "../tools/invoker";
 import { ContextSummarizer } from "../context/summarizer";
+import { MCPToolRegistry } from "../mcp/registry";
+import { ToolAwareLLMProvider } from "../llm/tool-aware-provider";
 import { printAgentStart, printAgentComplete } from "../reporter/console";
 import {
   logAgentExecution,
@@ -16,8 +18,9 @@ export async function runSequentialWorkflow(params: {
   registry: AgentRegistry;
   context: ContextStore;
   llm: LLMProvider;
+  mcpRegistry?: MCPToolRegistry;
 }) {
-  const { steps, registry, context, llm } = params;
+  const { steps, registry, context, llm, mcpRegistry } = params;
 
   // Initialize context summarizer
   const contextSummarizer = new ContextSummarizer(llm);
@@ -162,11 +165,63 @@ export async function runSequentialWorkflow(params: {
       llmProvider: llm.name,
     }, `🤖 Calling LLM for: ${agent.id}`);
 
-    const output = await llm.generate({
-      system: prompt.system,
-      user: prompt.user,
-      temperature: 0.2,
-    });
+    let output: string;
+    let toolCallLog: any[] = [];
+
+    // Check if agent has MCP tools assigned
+    const agentMCPTools = agent.mcpTools || [];
+    
+    if (agentMCPTools.length > 0 && mcpRegistry) {
+      // Use ToolAwareLLMProvider for agents with MCP tools
+      orchestratorLogger.info({
+        event: "TOOL_AWARE_MODE_ENABLED",
+        stepNumber,
+        agentId: agent.id,
+        mcpTools: agentMCPTools,
+      }, `🔧 Tool-aware mode enabled with ${agentMCPTools.length} MCP tools`);
+
+      const toolSchemas = agentMCPTools
+        .map((toolName: string) => {
+          const toolProvider = mcpRegistry.getTool(toolName);
+          return toolProvider ? toolProvider.getSchema() : null;
+        })
+        .filter((schema: any): schema is import("../mcp/schema").MCPTool => schema !== null);
+
+      orchestratorLogger.debug({
+        event: "TOOL_SCHEMAS_LOADED",
+        stepNumber,
+        agentId: agent.id,
+        toolCount: toolSchemas.length,
+      }, `✅ Loaded ${toolSchemas.length} tool schemas`);
+
+      const toolAwareLLM = new ToolAwareLLMProvider(llm, mcpRegistry);
+      
+      const result = await toolAwareLLM.generateWithTools({
+        system: prompt.system,
+        user: prompt.user,
+        temperature: 0.2,
+        tools: toolSchemas,
+        maxToolCalls: 10,
+      });
+
+      output = result.output;
+      toolCallLog = result.toolCalls;
+
+      orchestratorLogger.info({
+        event: "TOOL_CALLS_EXECUTED",
+        stepNumber,
+        agentId: agent.id,
+        toolCallCount: toolCallLog.length,
+        tools: toolCallLog.map(tc => tc.toolName),
+      }, `✅ Executed ${toolCallLog.length} tool calls`);
+    } else {
+      // Use standard LLM provider for agents without MCP tools
+      output = await llm.generate({
+        system: prompt.system,
+        user: prompt.user,
+        temperature: 0.2,
+      });
+    }
 
     const endedAt = Date.now();
     const duration = endedAt - startedAt;

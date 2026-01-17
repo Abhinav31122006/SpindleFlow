@@ -12,6 +12,7 @@ export class AgentRegistry {
         role: agent.role,
         goal: agent.goal,
         tools: agent.tools,
+        mcpTools: agent.mcpTools,
       });
     }
   }

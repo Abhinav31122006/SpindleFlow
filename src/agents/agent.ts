@@ -3,4 +3,5 @@ export type Agent = {
   role: string;
   goal: string;
   tools?: string[];
+  mcpTools?: string[];
 };

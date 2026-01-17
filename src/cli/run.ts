@@ -16,6 +16,7 @@ import {
   printError,
 } from "../reporter/console";
 import { ContextStore } from "../context/store";
+import { initializeMCPTools } from "../mcp/initializer";
 import {
   configLogger,
   agentLogger,
@@ -148,10 +149,22 @@ export async function runCommand(
       model: modelConfig.model,
     }, `✅ LLM provider selected: ${llm.name} (${modelConfig.model})`);
 
-    // 7. Print workflow start
+    // 7. Initialize MCP tools
+    configLogger.info({
+      event: "MCP_TOOLS_INIT_START",
+    }, `🔧 Initializing MCP tool registry`);
+
+    const mcpRegistry = initializeMCPTools(parsed);
+
+    configLogger.info({
+      event: "MCP_TOOLS_INITIALIZED",
+      toolCount: mcpRegistry.listTools().length,
+    }, `✅ MCP tools initialized: ${mcpRegistry.listTools().length} tools available`);
+
+    // 8. Print workflow start
     printWorkflowStart(userInput);
 
-    // 8. Execute workflow
+    // 9. Execute workflow
     orchestratorLogger.info({
       event: "WORKFLOW_EXECUTION_START",
       workflowType: parsed.workflow.type,
@@ -163,6 +176,7 @@ export async function runCommand(
       registry,
       context,
       llm,
+      mcpRegistry,
     });
 
     orchestratorLogger.info({

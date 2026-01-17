@@ -4,6 +4,7 @@ import { LLMProvider } from "../llm/provider";
 import { FeedbackLoopConfig } from "../config/feedback-schema";
 import { FeedbackProcessor } from "./feedback-processor";
 import { ContextSummarizer } from "../context/summarizer";
+import { MCPToolRegistry } from "../mcp/registry";
 import { buildReviewPrompt, buildRevisionPrompt } from "../prompt/feedback-prompts";
 import { buildPrompt } from "../prompt/builder";
 import { ToolInvoker } from "../tools/invoker";
@@ -41,8 +42,9 @@ export async function runIterativeParallelWorkflow(params: {
   registry: AgentRegistry;
   context: ContextStore;
   llm: LLMProvider;
+  mcpRegistry?: MCPToolRegistry;
 }) {
-  const { branches, then, registry, context, llm } = params;
+  const { branches, then, registry, context, llm, mcpRegistry } = params;
   const config = then.feedback_loop;
 
   orchestratorLogger.info({

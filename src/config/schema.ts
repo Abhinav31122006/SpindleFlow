@@ -6,6 +6,8 @@ export const AgentSchema = z.object({
   role: z.string().min(1),
   goal: z.string().min(1),
   tools: z.array(z.string()).optional(),
+  mcpTools: z.array(z.string()).optional(),
+  tool_config: z.record(z.string(), z.any()).optional(),
 });
 
 // Model configuration schema
@@ -45,6 +47,7 @@ export const RootConfigSchema = z.object({
   provider: z.string().min(1),
   agents: z.array(AgentSchema).min(1),
   workflow: WorkflowSchema,
+  tool_config: z.record(z.string(), z.any()).optional(),
 }).refine(
   (config) => config.provider in config.models,
   {

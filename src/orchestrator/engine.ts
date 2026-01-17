@@ -2,6 +2,7 @@ import { RootConfig } from "../config/schema";
 import { AgentRegistry } from "../agents/registry";
 import { ContextStore } from "../context/store";
 import { LLMProvider } from "../llm/provider";
+import { MCPToolRegistry } from "../mcp/registry";
 import { runSequentialWorkflow } from "./sequential";
 import { runParallelWorkflow } from "./parallel";
 import { runIterativeParallelWorkflow } from "./parallel-iterative";
@@ -12,8 +13,9 @@ export async function runWorkflow(params: {
   registry: AgentRegistry;
   context: ContextStore;
   llm: LLMProvider;
+  mcpRegistry?: MCPToolRegistry;
 }) {
-  const { config, registry, context, llm } = params;
+  const { config, registry, context, llm, mcpRegistry } = params;
 
   if (config.workflow.type === "sequential") {
     await runSequentialWorkflow({
@@ -21,6 +23,7 @@ export async function runWorkflow(params: {
       registry,
       context,
       llm,
+      mcpRegistry,
     });
   }
 
@@ -43,6 +46,7 @@ export async function runWorkflow(params: {
         registry,
         context,
         llm,
+        mcpRegistry,
       });
     } else {
       orchestratorLogger.info({
@@ -56,6 +60,7 @@ export async function runWorkflow(params: {
         registry,
         context,
         llm,
+        mcpRegistry,
       });
     }
   }

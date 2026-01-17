@@ -1,0 +1,50 @@
+models:
+  gemini:
+    provider: gemini
+    model: gemini-flash-latest
+    max_tokens: 8000
+  openai:
+    provider: openai
+    model: gpt-4o-mini
+    max_tokens: 4096
+
+provider: openai
+
+# Global tool configuration
+tool_config:
+  filesystem:
+    working_directory: ./workspace
+    allowed_extensions: [".txt", ".md", ".json", ".yml"]
+  web_search:
+    search_engine: google  # Using Google Custom Search API
+  code_execution:
+    timeout: 10000
+    memory_limit: 16
+
+agents:
+  - id: researcher
+    role: "Research Agent"
+    goal: "Research the topic using web search and save findings to a file"
+    mcpTools:
+      - web_search
+      - filesystem
+
+  - id: coder
+    role: "Code Generator"
+    goal: "Write JavaScript code to process data, test it, and save the code to a file"
+    mcpTools:
+      - code_execution
+      - filesystem
+
+  - id: summarizer
+    role: "Summary Writer"
+    goal: "Summarize all findings and code into a final report"
+    mcpTools:
+      - filesystem
+
+workflow:
+  type: sequential
+  steps:
+    - agent: researcher
+    - agent: coder
+    - agent: summarizer
