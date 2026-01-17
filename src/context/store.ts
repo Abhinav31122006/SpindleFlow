@@ -1,4 +1,5 @@
 import { logContextUpdate, logDataTransfer, contextLogger } from "../logger/enhanced-logger";
+import { ContextSummary } from "./types";
 
 export type TimelineEntry = {
   agentId: string;
@@ -15,6 +16,7 @@ export class ContextStore {
   public userInput: string;
   public outputs: Record<string, string> = {};
   public timeline: TimelineEntry[] = [];
+  private summaries: Map<string, ContextSummary> = new Map();
 
   constructor(userInput: string) {
     this.userInput = userInput;
@@ -190,5 +192,64 @@ export class ContextStore {
     );
 
     return lastEntry.output;
+  }
+
+  setSummary(agentId: string, summary: ContextSummary): void {
+    contextLogger.info({
+      event: "SUMMARY_SET",
+      agentId,
+      keyInsightsCount: summary.keyInsights.length,
+      decisionsCount: summary.decisions.length,
+      artifactsCount: summary.artifacts.length,
+      nextStepsCount: summary.nextSteps.length,
+    }, `📝 Storing summary for agent: ${agentId}`);
+
+    this.summaries.set(agentId, summary);
+
+    logDataTransfer(
+      agentId,
+      "ContextStore.summaries",
+      summary,
+      "explicit"
+    );
+  }
+
+  getSummary(agentId: string): ContextSummary | undefined {
+    const summary = this.summaries.get(agentId);
+    
+    contextLogger.debug({
+      event: "SUMMARY_GET",
+      agentId,
+      found: summary !== undefined,
+    }, `🔍 Retrieved summary for agent: ${agentId}`);
+
+    if (summary !== undefined) {
+      logDataTransfer(
+        "ContextStore.summaries",
+        "caller",
+        summary,
+        "explicit"
+      );
+    }
+
+    return summary;
+  }
+
+  getAllSummaries(): ContextSummary[] {
+    const summaries = Array.from(this.summaries.values());
+    
+    contextLogger.debug({
+      event: "GET_ALL_SUMMARIES",
+      count: summaries.length,
+    }, `📚 Retrieved all summaries: ${summaries.length} total`);
+
+    logDataTransfer(
+      "ContextStore.summaries",
+      "caller",
+      summaries,
+      "implicit"
+    );
+
+    return summaries;
   }
 }

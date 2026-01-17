@@ -3,6 +3,7 @@ import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
 import { ToolInvoker } from "../tools/invoker";
+import { ContextSummarizer } from "../context/summarizer";
 import {
   printParallelStart,
   printParallelComplete,
@@ -23,6 +24,9 @@ export async function runParallelWorkflow(params: {
   llm: LLMProvider;
 }) {
   const { branches, then, registry, context, llm } = params;
+
+  // Initialize context summarizer
+  const contextSummarizer = new ContextSummarizer(llm);
 
   orchestratorLogger.info({
     event: "PARALLEL_WORKFLOW_START",
@@ -244,6 +248,45 @@ export async function runParallelWorkflow(params: {
       result,
       "explicit"
     );
+
+    // NEW: Create and store summary for each branch
+    orchestratorLogger.info({
+      event: "CREATING_BRANCH_SUMMARY",
+      branchNumber: i + 1,
+      agentId: result.agentId,
+    }, `📝 Creating summary for branch: ${result.agentId}`);
+
+    try {
+      const summary = await contextSummarizer.summarize(
+        result.output,
+        result.agentId,
+        result.role
+      );
+
+      context.setSummary(result.agentId, summary);
+
+      orchestratorLogger.info({
+        event: "BRANCH_SUMMARY_STORED",
+        branchNumber: i + 1,
+        agentId: result.agentId,
+        keyInsightsCount: summary.keyInsights.length,
+        decisionsCount: summary.decisions.length,
+      }, `✅ Summary created and stored for branch: ${result.agentId}`);
+
+      logDataTransfer(
+        "ContextSummarizer",
+        "ContextStore",
+        { summary },
+        "explicit"
+      );
+    } catch (error) {
+      orchestratorLogger.error({
+        event: "BRANCH_SUMMARY_ERROR",
+        branchNumber: i + 1,
+        agentId: result.agentId,
+        error: error instanceof Error ? error.message : String(error),
+      }, `❌ Failed to create summary for branch: ${result.agentId}`);
+    }
   }
 
   orchestratorLogger.info({
@@ -397,6 +440,42 @@ export async function runParallelWorkflow(params: {
     duration: aggregatorDuration,
     outputLength: finalOutput.length,
   });
+
+  // NEW: Create and store summary for aggregator
+  orchestratorLogger.info({
+    event: "CREATING_AGGREGATOR_SUMMARY",
+    agentId: finalAgent.id,
+  }, `📝 Creating summary for aggregator: ${finalAgent.id}`);
+
+  try {
+    const aggregatorSummary = await contextSummarizer.summarize(
+      finalOutput,
+      finalAgent.id,
+      finalAgent.role
+    );
+
+    context.setSummary(finalAgent.id, aggregatorSummary);
+
+    orchestratorLogger.info({
+      event: "AGGREGATOR_SUMMARY_STORED",
+      agentId: finalAgent.id,
+      keyInsightsCount: aggregatorSummary.keyInsights.length,
+      decisionsCount: aggregatorSummary.decisions.length,
+    }, `✅ Summary created and stored for aggregator: ${finalAgent.id}`);
+
+    logDataTransfer(
+      "ContextSummarizer",
+      "ContextStore",
+      { summary: aggregatorSummary },
+      "explicit"
+    );
+  } catch (error) {
+    orchestratorLogger.error({
+      event: "AGGREGATOR_SUMMARY_ERROR",
+      agentId: finalAgent.id,
+      error: error instanceof Error ? error.message : String(error),
+    }, `❌ Failed to create summary for aggregator: ${finalAgent.id}`);
+  }
 
   // Print aggregator completion
   printAgentComplete(finalEntry);

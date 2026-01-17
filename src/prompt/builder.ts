@@ -93,53 +93,73 @@ Follow the goal strictly. Be concise, clear, and relevant.
     );
   }
 
-  // Add previous agent outputs if any exist
-  const previousOutputs = context.getPreviousOutputs();
+  // Add previous agent summaries if any exist (NEW: using summaries instead of full outputs)
+  const summaries = context.getAllSummaries();
   
-  promptLogger.debug({
-    event: "PREVIOUS_OUTPUTS_CHECK",
+  promptLogger.info({
+    event: "SUMMARIES_CHECK",
     agentId: agent.id,
-    previousOutputCount: previousOutputs.length,
-  }, `🔍 Checking for previous outputs: ${previousOutputs.length} found`);
+    summaryCount: summaries.length,
+    summaryAgents: summaries.map(s => s.agentId),
+  }, `🔍 Checking for previous summaries: ${summaries.length} found from [${summaries.map(s => s.agentId).join(', ')}]`);
 
-  if (previousOutputs.length > 0) {
+  if (summaries.length > 0) {
     promptLogger.info({
-      event: "ADDING_CONTEXT",
+      event: "ADDING_CONTEXT_SUMMARIES",
       agentId: agent.id,
-      previousOutputCount: previousOutputs.length,
-    }, `➕ Adding ${previousOutputs.length} previous outputs to context`);
+      summaryCount: summaries.length,
+      summaryAgents: summaries.map(s => s.agentId),
+    }, `➕ Adding ${summaries.length} previous agent summaries to context: ${summaries.map(s => s.agentId).join(', ')}`);
 
-    userPrompt += `\nPrevious agent outputs:\n`;
+    userPrompt += `\nPrevious agent work:\n`;
 
     logDataTransfer(
-      "ContextStore.timeline",
+      "ContextStore.summaries",
       "PromptBuilder",
-      previousOutputs,
+      summaries,
       "implicit"
     );
 
-    for (let i = 0; i < previousOutputs.length; i++) {
-      const entry = previousOutputs[i];
+    for (let i = 0; i < summaries.length; i++) {
+      const summary = summaries[i];
       
-      promptLogger.debug({
-        event: "OUTPUT_ADDED_TO_PROMPT",
+      promptLogger.info({
+        event: "SUMMARY_ADDED_TO_PROMPT",
         agentId: agent.id,
-        sourceAgentId: entry.agentId,
-        sourceRole: entry.role,
-        outputLength: entry.output.length,
+        sourceAgentId: summary.agentId,
+        sourceRole: summary.role,
+        keyInsightsCount: summary.keyInsights.length,
+        decisionsCount: summary.decisions.length,
+        artifactsCount: summary.artifacts.length,
+        nextStepsCount: summary.nextSteps.length,
         position: i + 1,
-        total: previousOutputs.length,
-      }, `  📝 Adding output ${i + 1}/${previousOutputs.length} from ${entry.role}`);
+        total: summaries.length,
+      }, `  📝 Adding summary ${i + 1}/${summaries.length} from ${summary.role} (${summary.agentId}): ${summary.keyInsights.length} insights, ${summary.decisions.length} decisions`);
 
-      userPrompt += `
---- ${entry.role} (${entry.agentId}) ---
-${entry.output}
-`;
+      userPrompt += `\n[${summary.role}]\n`;
+      
+      if (summary.keyInsights.length > 0) {
+        userPrompt += `Key Insights: ${summary.keyInsights.join("; ")}\n`;
+      }
+      
+      if (summary.decisions.length > 0) {
+        userPrompt += `Decisions: ${summary.decisions.join("; ")}\n`;
+      }
+      
+      if (summary.artifacts.length > 0) {
+        userPrompt += `Artifacts: ${summary.artifacts.join("; ")}\n`;
+      }
+      
+      if (summary.nextSteps.length > 0) {
+        userPrompt += `Next Steps: ${summary.nextSteps.join("; ")}\n`;
+      }
+      
+      userPrompt += `---\n`;
 
       logDataTransfer(
-        entry.agentId,
+        summary.agentId,
         `PromptBuilder->${agent.id}`,
-        { output: entry.output },
+        { summary },
         "implicit"
       );
     }
@@ -147,7 +167,7 @@ ${entry.output}
     promptLogger.debug({
       event: "NO_CONTEXT_ADDED",
       agentId: agent.id,
-    }, `ℹ️ No previous outputs to add`);
+    }, `ℹ️ No previous summaries to add`);
   }
 
   userPrompt = userPrompt.trim();
@@ -171,8 +191,8 @@ ${entry.output}
     userPrompt,
     {
       userInputUsed: true,
-      previousOutputsUsed: previousOutputs.length > 0,
-      previousOutputCount: previousOutputs.length,
+      previousOutputsUsed: summaries.length > 0,
+      previousOutputCount: summaries.length,
     }
   );
 

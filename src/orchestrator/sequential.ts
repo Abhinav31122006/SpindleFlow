@@ -3,6 +3,7 @@ import { ContextStore } from "../context/store";
 import { buildPrompt } from "../prompt/builder";
 import { LLMProvider } from "../llm/provider";
 import { ToolInvoker } from "../tools/invoker";
+import { ContextSummarizer } from "../context/summarizer";
 import { printAgentStart, printAgentComplete } from "../reporter/console";
 import {
   logAgentExecution,
@@ -17,6 +18,9 @@ export async function runSequentialWorkflow(params: {
   llm: LLMProvider;
 }) {
   const { steps, registry, context, llm } = params;
+
+  // Initialize context summarizer
+  const contextSummarizer = new ContextSummarizer(llm);
 
   orchestratorLogger.info({
     event: "SEQUENTIAL_WORKFLOW_START",
@@ -222,6 +226,45 @@ export async function runSequentialWorkflow(params: {
       duration,
       outputLength: output.length,
     });
+
+    // NEW: Create and store summary
+    orchestratorLogger.info({
+      event: "CREATING_SUMMARY",
+      stepNumber,
+      agentId: agent.id,
+    }, `📝 Creating summary for: ${agent.id}`);
+
+    try {
+      const summary = await contextSummarizer.summarize(
+        output,
+        agent.id,
+        agent.role
+      );
+
+      context.setSummary(agent.id, summary);
+
+      orchestratorLogger.info({
+        event: "SUMMARY_STORED",
+        stepNumber,
+        agentId: agent.id,
+        keyInsightsCount: summary.keyInsights.length,
+        decisionsCount: summary.decisions.length,
+      }, `✅ Summary created and stored for: ${agent.id}`);
+
+      logDataTransfer(
+        "ContextSummarizer",
+        "ContextStore",
+        { summary },
+        "explicit"
+      );
+    } catch (error) {
+      orchestratorLogger.error({
+        event: "SUMMARY_CREATION_ERROR",
+        stepNumber,
+        agentId: agent.id,
+        error: error instanceof Error ? error.message : String(error),
+      }, `❌ Failed to create summary for: ${agent.id}`);
+    }
 
     // Print completion message
     printAgentComplete(entry);
